@@ -41,30 +41,35 @@ class SiblingNavigationLevel(Level):
     title = "Navigace mezi sourozenci"
     instructions = """
         ### Cíl
-        Přejděte z jednoho podadresáře do druhého (sourozeneckého) adresáře.
+        Přejděte z aktuálního podadresáře do sousedního (sourozeneckého) adresáře.
 
-        ### Příkazy k naučení
-        - `cd ../<název>` (jít nahoru a hned dolů do jiného adresáře)
+        ### Struktura adresářů
+        ```
+        level-2/
+        ├── start/       ← Zde se nacházíte (start)
+        └── finish/      ← Váš cíl
+        ```
+
+        ### Navigace mezi sourozenci
+        Adresáře `start` a `finish` leží vedle sebe ve stejném rodičovském adresáři (`level-2`).
+        Protože `finish` neleží uvnitř `start`, nelze použít přímý příkaz `cd finish`.
+        Musíte se nejprve vrátit k rodiči (`..`) a odtud vstoupit do cíle:
+        - Ve dvou krocích: nejprve o úroveň výše (`cd ..`) a potom do cíle.
+        - Nebo v jednom kroku spojenou relativní cestou: `cd ../<cílový_adresář>`.
 
         ### Úkol
-        Nacházíte se v adresáři `level-2/start`.
-        Vaším úkolem je přejít do adresáře `level-2/finish`.
+        1. Začínáte v adresáři `level-2/start`
+        2. Přejděte do sousedního adresáře `finish`
+        3. V cíli ověřte polohu příkazem `pwd` a odešlete řešení
 
-        Můžete to udělat ve dvou krocích:
-        1. `cd ..` (zpět do level-2)
-        2. `cd finish` (do cíle)
-
-        Nebo v jednom kroku:
-        `cd ../finish`
-
-        Odevzdejte název cílového adresáře:
-        `shellgame submit finish`
-        (nebo přímo v cíli: `shellgame submit`)
+        ### Odevzdání
+        V cílovém adresáři spusťte:
+        `shellgame submit`
         """
     hints = [
-        "Do sourozeneckého adresáře se dostanete přes rodičovský adresář ('..').",
-        "Můžete použít 'cd ..' a pak 'cd finish', nebo to spojit do jednoho příkazu 'cd ../finish'.",
-        "Po přesunu ověřte polohu příkazem 'pwd'. Odevzdejte poslední část cesty nebo prázdný 'shellgame submit'.",
+        "Do sourozeneckého adresáře se dostanete přes společného rodiče ('..').",
+        "Zkuste nejprve vystoupat o úroveň výše nebo použít spojenou relativní cestu začínající '../'.",
+        "Po přesunu ověřte polohu příkazem 'pwd' a spusťte 'shellgame submit'.",
     ]
     start_directory = "start"
     fixture = WorkspaceFixture(directories=("start", "finish"))
@@ -73,13 +78,13 @@ class SiblingNavigationLevel(Level):
         requirements=(AtDirectory("finish"),),
         allow_empty=True,
     )
+    success_message = "Správně! K sourozenci se chodí přes společného rodiče — nahoru a hned dolů jiným směrem."
 
 
 @section.level(2)
 class PreviousDirectoryToggleLevel(Level):
     solution = Solution(
         steps=(Chdir("location-B"), PerformCd("-", move_to="location-A")),
-        answer="location-A",
     )
     title = "Rychlý návrat"
     instructions = """
@@ -93,37 +98,34 @@ class PreviousDirectoryToggleLevel(Level):
         1. Začínáte v `level-2/location-A`.
         2. Přejděte do `level-2/location-B` (použijte `cd ../location-B`).
         3. Použijte příkaz `cd -` pro okamžitý návrat zpět do `location-A`.
-        4. Odevzdejte název adresáře, kde jste skončili.
-
-        Odevzdejte pomocí: `shellgame submit [název-adresáře]`
+        4. Po návratu spusťte pouze `shellgame submit`.
         """
     hints = [
         "Příkaz 'cd -' vás vrátí do předchozího pracovního adresáře (jako tlačítko Zpět).",
         "Nejprve přejděte do 'location-B' ('cd ../location-B') a odtud zadejte 'cd -'.",
-        "Po návratu ověřte polohu příkazem 'pwd' a odevzdejte poslední část cesty.",
+        "Po návratu ověřte polohu příkazem 'pwd' a spusťte jen 'shellgame submit'.",
     ]
     start_directory = "location-A"
     fixture = WorkspaceFixture(directories=("location-A", "location-B"))
     completion = Completion(
-        answer=ExactAnswer("location-A"),
         requirements=(
             AtDirectory("location-A"),
             CdEvidence(
                 "Nejdřív přejděte do `location-B` a vraťte se příkazem `cd -`.",
             ),
         ),
-        allow_empty=True,
     )
 
     cd_policy = CdPolicy(
         scope=(WithTarget("-"),),
         rules=(RequireSourceDirectory("location-B", "Příkaz 'cd -' použijte až z adresáře location-B."),),
     )
+    success_message = "Správně! Shell si pamatuje předchozí adresář, takže `cd -` přepíná mezi dvěma místy bez cesty."
 
 
 @section.level(3)
 class DeepRelativeNavigationLevel(Level):
-    solution = Solution(steps=(PerformCd("../../other/target"),), answer="target")
+    solution = Solution(steps=(PerformCd("../../other/target"),))
     title = "Hluboká navigace"
     instructions = """
         ### Cíl
@@ -138,29 +140,25 @@ class DeepRelativeNavigationLevel(Level):
 
         Musíte jít o dvě úrovně výše a pak dolů do `other/target`.
 
-        Odevzdejte název cílového adresáře.
-
-        Odevzdejte pomocí: `shellgame submit [název-adresáře]`
+        V cíli spusťte pouze `shellgame submit`.
         Potřebujete pomoc? Napište: `shellgame hint`
         """
     hints = [
         "Pro přechod do jiné větve stromu musíte nejprve vystoupat nahoru přes '..' a pak sestoupit dolů.",
         "Ze 'start' vystoupejte o dvě úrovně ('../..') a zadejte 'cd ../../other/target'.",
-        "Po přesunu ověřte polohu příkazem 'pwd' a odevzdejte poslední část cesty.",
+        "Po přesunu ověřte polohu příkazem 'pwd' a spusťte jen 'shellgame submit'.",
     ]
     start_directory = "deep/structure/start"
     fixture = WorkspaceFixture(
         directories=("deep/structure/start", "deep/other/target"),
     )
     completion = Completion(
-        answer=ExactAnswer("target"),
         requirements=(
             AtDirectory("deep/other/target"),
             CdEvidence(
                 "Použijte ze startu jeden relativní příkaz `cd ../../other/target`.",
             ),
         ),
-        allow_empty=True,
     )
 
     cd_policy = CdPolicy(
@@ -169,6 +167,7 @@ class DeepRelativeNavigationLevel(Level):
             RequireExactCommand("../../other/target", "Použijte ze startu jeden příkaz 'cd ../../other/target'."),
         )
     )
+    success_message = "Správně! Jedna relativní cesta umí obsahovat výstup i sestup — nejdřív `..`, potom jména větve."
 
 
 @section.level(4)
@@ -181,12 +180,17 @@ class ReadFirstWordLevel(Level):
         ### Příkazy k naučení
         - `cat <soubor>` (vypíše obsah souboru do terminálu)
 
+        ### ⚠️ Bezpečnostní pojistka: Ctrl+C
+        Kdybyste omylem spustili `cat` bez názvu souboru, příkaz neví, co číst,
+        a začne čekat na vstup z klávesnice (terminál se zdánlivě „zasekne“).
+        Kdykoliv se vám to stane, stiskněte **Ctrl+C** — to běžící příkaz okamžitě přeruší.
+
         ### Úkol
         1. V aktuálním adresáři je soubor `message.txt`.
         2. Přečtěte si jeho obsah pomocí `cat message.txt`.
         3. Odevzdejte **PRVNÍ SLOVO**, které v souboru najdete.
 
-        Odevzdejte pomocí: `shellgame submit [slovo]`
+        Odevzdejte pomocí: `shellgame submit <slovo>`
         Potřebujete pomoc? Napište: `shellgame hint`
         """
     hints = [
@@ -203,6 +207,7 @@ class ReadFirstWordLevel(Level):
             required_message="Musíte zadat první slovo ze zprávy: shellgame submit <slovo>",
         )
     )
+    success_message = "Správně! `cat` vysype celý obsah souboru do terminálu — ideální na krátké textové soubory."
 
 
 @section.level(5)
@@ -217,7 +222,7 @@ class ChainedClueTraversalLevel(Level):
         2. Postupujte podle instrukcí v souboru.
         3. Najděte finální heslo a odevzdejte ho.
 
-        Odevzdejte pomocí: `shellgame submit [heslo]`
+        Odevzdejte pomocí: `shellgame submit <heslo>`
         Potřebujete pomoc? Napište: `shellgame hint`
         """
     hints = [
@@ -239,6 +244,7 @@ class ChainedClueTraversalLevel(Level):
             required_message="Musíte zadat heslo: shellgame submit <heslo>",
         )
     )
+    success_message = "Správně! Střídat `ls`, `cd` a `cat` stačí k prozkoumání libovolné neznámé struktury."
 
 
 @section.level(6)
@@ -250,7 +256,7 @@ class CreateFileWithTouchLevel(Level):
         Vytvořte nový prázdný soubor.
 
         ### Příkazy k naučení
-        - `touch <název>` (vytvoří prázdný soubor nebo aktualizuje čas razítka)
+        - `touch <název>` (vytvoří prázdný soubor nebo aktualizuje časové značky existujícího souboru)
 
         ### Úkol
         1. Vytvořte soubor s názvem `my_file.txt` v aktuálním adresáři.
@@ -267,50 +273,98 @@ class CreateFileWithTouchLevel(Level):
     start_directory = ""
     fixture = WorkspaceFixture(clean=("my_file.txt",))
     completion = Completion(requirements=(FileExists("my_file.txt"),))
+    success_message = "Správně! `touch` založí prázdný soubor; u existujícího jen posune časové značky."
 
 
 @section.level(7)
+class HelpDiscoveryLevel(Level):
+    solution = Solution(answer="human-readable")
+    title = "Jak najít pomoc"
+    instructions = """
+        ### Cíl
+        Naučte se vyhledávat v nápovědě k příkazům.
+
+        ### Dva způsoby, jak získat pomoc
+        Nikdo si nepamatuje všechny přepínače všech příkazů:
+        1. `<příkaz> --help` → stručný přehled přepínačů přímo v terminálu
+        2. `man <příkaz>` → podrobný manuál (stránkovaný; ukončíte ho klávesou `q`)
+
+        ### 💡 Hledání v manuálu (`man`)
+        V manuálu můžete vyhledávat:
+        - Stiskněte klávesu `/`, napište hledaný text (např. `-h`) a stiskněte **Enter**.
+        - Klávesou `n` přejdete na další výskyt.
+        - Klávesou `q` manuál ukončíte.
+
+        ### Úkol
+        1. Spusťte `ls --help` nebo otevřete manuál `man ls`.
+        2. Vyhledejte přepínač `-h`.
+        3. Krátké přepínače mívají svůj dlouhý ekvivalent začínající na `--` (např. `-a` má `--all`).
+           Jaký dlouhý název má přepínač `-h`?
+        4. Odevzdejte tento dlouhý název (např. `human-readable` nebo `--human-readable`).
+
+        ### Odevzdání
+        `shellgame submit <název>`
+        """
+    hints = [
+        "Spusťte 'ls --help' nebo 'man ls' a vyhledejte řádek s přepínačem '-h'.",
+        "V nápovědě uvidíte zápis ve tvaru '-h, --název'. Hledejte slovo za dvěma pomlčkami.",
+        "Přepínač '-h' je zkratka pro 'human-readable'. Odevzdejte: shellgame submit human-readable",
+    ]
+    start_directory = ""
+    completion = Completion(
+        answer=ChoiceAnswer(
+            (
+                "human-readable",
+                "--human-readable",
+                "human readable",
+                "human",
+                "čitelné",
+                "citelne",
+                "čitelné formátování",
+            ),
+            case_sensitive=False,
+            error_message=(
+                "Odpověď není správně. V nápovědě vyhledejte řádek s přepínačem '-h' "
+                "a najděte jeho dlouhý název (--...)."
+            ),
+            required_message="Musíte zadat odpověď: shellgame submit <název>",
+        )
+    )
+    success_message = "Správně! Teď víte, jak najít pomoc. Příkaz --help a man jsou vaši nejlepší přátelé!"
+
+
+@section.level(8)
 class SectionChallengeLevel(Level):
     solution = Solution(
         steps=(Chdir("challenge/room1"), Chdir("challenge/room2")),
         answer="navigator",
     )
-    title = "Souhrn Sekce 2"
+    title = "Integrační výzva"
     instructions = """
-        ### Výzva: Test dovedností Sekce 2
+        ### Výzva: Propojte navigaci a čtení souborů
 
-        Kombinujte navigaci a čtení souborů!
+        Závěrečný úkol sekce: použijete v něm několik dovedností najednou.
 
         ### Úkol
-        1. Začínáte v `level-2`. Přejděte do `challenge` (`cd challenge`)
-        2. Odtud vstupte do `room1` (`cd room1`)
-        3. Přečtěte `hint.txt` - řekne vám kam dál
-        4. Použijte `cd -` pro návrat do `challenge` a pak pokračujte podle stopy
-        5. Najděte soubor `password.txt` a přečtěte ho
-        6. Odevzdejte heslo
-
-        ### Shrnutí příkazů Sekce 2
-        ```
-        cd ../jiný    → Přechod na sourozence
-        cd -          → Zpět kde jsem byl
-        cat soubor    → Přečíst soubor
-        touch soubor  → Vytvořit prázdný soubor
-        ```
+        1. Začínáte v `level-2`. Přejděte do `challenge/room1`.
+        2. Přečtěte soubor `hint.txt`.
+        3. Podle stopy přejděte do `room2`.
+        4. Přečtěte `password.txt` a odevzdejte nalezené heslo.
 
         ### Odevzdání
-        `shellgame submit <heslo>`
+        `shellgame submit <hodnota>`
         """
     hints = [
-        "Ze startu použijte 'cd challenge', pak 'cd room1'. Přečtěte hint.txt.",
-        "Hint vás pošle do room2. Použijte cd ../room2 nebo cd - a pak cd room2.",
-        "V room2 je soubor password.txt. Přečtěte ho pomocí 'cat password.txt'.",
+        "Ze startu přejděte do 'challenge/room1' a přečtěte 'hint.txt'.",
+        "Do sousedního 'room2' se dostanete například příkazem 'cd ../room2'.",
+        "V 'room2' přečtěte soubor 'password.txt' pomocí 'cat'.",
     ]
     start_directory = ""
     fixture = WorkspaceFixture(
         files=(
             FileFixture(
                 "challenge/room1/hint.txt",
-                "Heslo je v room2. Vraťte se zpět (cd -) a pak jděte do room2.\n",
+                "Heslo je v sousedním adresáři room2.\n",
             ),
             FileFixture("challenge/room2/password.txt", "navigator\n"),
             FileFixture("challenge/room2/decoy.txt", "Toto není heslo.\n"),
@@ -325,63 +379,8 @@ class SectionChallengeLevel(Level):
                 "toto neni heslo": "To je obsah decoy.txt, ne password.txt. Přečtěte správný soubor.",
             },
             error_message="Heslo není správné. Hledejte password.txt v room2.",
-            required_message="Musíte zadat heslo: shellgame submit <heslo>",
+            required_message="Musíte zadat heslo: shellgame submit <hodnota>",
         ),
+        requirements=(AtDirectory("challenge/room2"),),
     )
-    success_message = "Výborně! Dokončili jste Sekci 2. Umíte navigovat a číst soubory!"
-
-
-@section.level(8)
-class HelpDiscoveryLevel(Level):
-    title = "Jak najít pomoc"
-    instructions = """
-        # Jak najít pomoc
-
-        Nikdo si nepamatuje všechny přepínače všech příkazů. Proto existuje nápověda!
-
-        ### Dva způsoby, jak získat pomoc
-        1. `příkaz --help` → Stručná nápověda (většina příkazů)
-        2. `man příkaz` → Podrobný manuál (klávesa `q` pro ukončení)
-
-        ### Příklady
-        ```bash
-        ls --help       # Rychlý přehled přepínačů
-        man ls          # Kompletní dokumentace
-        ```
-
-        ### Tip: Hledání v manuálu
-        V `man` můžete hledat: stiskněte `/`, napište hledaný text, Enter.
-        Klávesa `n` = další výskyt, `q` = konec.
-
-        ## Úkol
-        Zjistěte, co dělá přepínač `-h` u příkazu `ls`.
-
-        Použijte: `ls --help | grep -- "-h"` nebo si přečtěte `man ls`.
-
-        Odpovězte: Přepínač -h zobrazuje velikosti v jakém formátu?
-        (např. human nebo human-readable)
-
-        ## Odevzdání
-        `shellgame submit <slovo>`
-        """
-    hints = [
-        "Příkaz 'ls --help' vypíše všechny dostupné přepínače.",
-        "Hledejte řádek s '-h' - říká něco o 'human readable' velikostech.",
-        "V nápovědě vyhledejte popis přepínače -h; odevzdejte první slovo z výrazu 'human-readable'.",
-    ]
-    start_directory = ""
-    completion = Completion(
-        answer=ChoiceAnswer(
-            (
-                "human-readable",
-                "human",
-                "čitelné",
-                "citelne",
-                "čitelné formátování",
-            ),
-            case_sensitive=False,
-            error_message="Odpověď není správně. Podívejte se na 'ls --help | grep -- \"-h\"'.",
-            required_message="Musíte zadat odpověď: shellgame submit <odpověď>",
-        )
-    )
-    success_message = "Správně! Teď víte, jak najít pomoc. Příkaz --help a man jsou vaši nejlepší přátelé!"
+    success_message = "Výborně! Dokončili jste Sekci 2 a umíte propojit navigaci se čtením souborů."

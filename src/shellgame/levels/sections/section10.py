@@ -1,311 +1,356 @@
 from __future__ import annotations
 
+from typing_extensions import override
+
 from shellgame.levels.base import Level
 from shellgame.levels.collector import Section
-from shellgame.levels.completion import Completion, ExactAnswer, FileExists, IntegerAnswer, TupleAnswer
+from shellgame.levels.completion import (
+    Completion,
+    Evidence,
+    ExactAnswer,
+    FileLineCount,
+    IntegerAnswer,
+    TextFileContent,
+    TupleAnswer,
+)
 from shellgame.levels.fixture import FileFixture, WorkspaceFixture
-from shellgame.levels.solution import RunShell, Solution
+from shellgame.levels.solution import RecordFdEvidence, RunShell, Solution
+from shellgame.markers import MarkerManager
+from shellgame.protocols import GameStateProtocol
 
 section = Section(10, root="level-10")
+
+_BUGGY_SCRIPT = "#!/bin/bash\necho 'This is normal output'\necho 'This is an error message' >&2\n"
+_MIXED_SCRIPT = """#!/bin/bash
+echo "Line 1 - normal output"
+echo "ERROR: Something went wrong" >&2
+echo "Line 2 - more output"
+echo "ERROR: Another problem" >&2
+echo "Line 3 - final output"
+"""
 
 
 @section.level(0)
 class SectionIntro(Level):
     is_intro = True
-    title = "Sekce 10: Žolíky (Wildcards)"
+    title = "Sekce 10: Chybové výstupy"
     instructions_file = "section10_intro.md"
     hints = ["Přečtěte si úvod a pokračujte stisknutím Enter."]
     success_message = "Jdeme na to!"
 
 
 @section.level(1)
-class StarWildcardCopyLevel(Level):
-    solution = Solution(steps=(RunShell("cp *.jpg images/"),), answer=None)
-    title = "Hvězdička *"
+class StderrToFileLevel(Level):
+    solution = Solution(steps=(RunShell("./buggy.sh 2> errors.log"),), answer="errors.log")
+    title = "Přesměrování chyb"
     instructions = """
-        # Hvězdička *
+        Standardní chybový výstup (stderr) používá deskriptor souboru 2.
+        Pro přesměrování pouze chyb použijte `2>`.
 
-        Hvězdička `*` nahradí JAKOUKOLIV sekvenci znaků (včetně prázdné).
-        Je velmi užitečná pro výběr souborů se specifickou příponou.
-
-        ### Proč je to užitečné
-        Představte si, že máte 100 fotografií a chcete je všechny zkopírovat.
-        Místo `cp foto1.jpg foto2.jpg foto3.jpg ...` stačí `cp *.jpg cíl/`.
+        ### Proč je to důležité
+        Při běhu programů často chcete zachytit chybové hlášky do logu,
+        zatímco normální výstup zobrazíte uživateli. Oddělení stdout a stderr
+        je klíčové pro diagnostiku problémů.
 
         ### Úkol
-        Zkopírujte všechny soubory s příponou `.jpg` do adresáře `images`.
-        (Adresář `images` již existuje).
+        V adresáři je skript `buggy.sh`, který vypisuje normální text i chybové zprávy.
+        Spusťte ho a přesměrujte POUZE chybové zprávy do souboru `errors.log`.
 
         ### Příkazy
-        - `cp *.jpg adresář/` - zkopíruje všechny .jpg soubory
+        - `./script 2> soubor` - přesměruje stderr do souboru
 
         ### Odevzdání
-        Po splnění úkolu odevzdejte: `shellgame submit`
+        Odevzdejte název vytvořeného souboru.
+        `shellgame submit <název>`
         """
     hints = [
-        "Hvězdička (*) nahrazuje libovolný počet znaků.",
-        "Příkaz 'ls *.jpg' vypíše všechny soubory s příponou .jpg.",
-        "Použijte 'cp *.jpg images/' pro zkopírování všech souborů s příponou .jpg do adresáře images.",
+        "Běžný výstup jde na stdout (1), chyby na stderr (2). Jak přesměrujete jen dvojku?",
+        "Syntaxe je: příkaz 2> soubor. Zkuste to se skriptem buggy.sh.",
+        "Použijte './buggy.sh 2> errors.log'.",
     ]
-    start_directory = "star"
+    start_directory = ""
     fixture = WorkspaceFixture(
-        directories=("star/images",),
-        files=(
-            FileFixture("star/photo1.jpg"),
-            FileFixture("star/photo2.jpg"),
-            FileFixture("star/notes.txt"),
-        ),
-        clean=("star/images",),
+        files=(FileFixture("buggy.sh", _BUGGY_SCRIPT, mode=0o755),),
+        clean=("errors.log",),
     )
     completion = Completion(
+        answer=ExactAnswer("errors.log"),
         requirements=(
-            FileExists("star/images/photo1.jpg"),
-            FileExists("star/images/photo2.jpg"),
-            FileExists("star/images/notes.txt", should_exist=False),
-        )
+            TextFileContent(
+                "errors.log",
+                excludes=("This is normal output",),
+                error_message="Soubor obsahuje i normální výstup (použili jste &> nebo chybí 2?).",
+                missing_message="Soubor neexistuje.",
+            ),
+            TextFileContent(
+                "errors.log",
+                contains=("This is an error message",),
+                error_message="Soubor neobsahuje očekávanou chybu.",
+            ),
+        ),
     )
+    success_message = "Správně! Soubor obsahuje pouze chyby."
 
 
 @section.level(2)
-class QuestionMarkWildcardCopyLevel(Level):
-    solution = Solution(steps=(RunShell("cp data?.txt short_data/"),), answer=None)
-    title = "Otazník ?"
+class AppendStderrToFileLevel(Level):
+    solution = Solution(steps=(RunShell("./buggy.sh 2>> errors.log"),), answer="errors.log")
+    title = "Přidávání chyb"
     instructions = """
-        # Otazník ?
-
-        Otazník `?` nahradí PRÁVĚ JEDEN znak.
-        Je užitečný, když chcete být přesnější než s hvězdičkou.
-
-        ### Požadavek: Bash
-        Tento level vyžaduje **Bash**. Ve fish použijte variantu s `bash -c` níže.
-        Ta spustí pouze kopírování v Bashi; odevzdávejte dál ve svém herním shellu.
-
-        ### Rozdíl od hvězdičky
-        - `*` = libovolný počet znaků (0 nebo více)
-        - `?` = přesně jeden znak
+        Stejně jako u normálního výstupu se i u chyb rozhodujete mezi dvěma operátory:
+        jeden soubor před zápisem vyprázdní, druhý zapisuje na jeho konec.
 
         ### Úkol
-        Zkopírujte `data1.txt` a `data2.txt` do adresáře `short_data/`.
-        NEKOPÍRUJTE `data10.txt` (má dvouciferné číslo).
+        V souboru `errors.log` už je z minula záznam `Old error 1`.
+        Spusťte `buggy.sh` znovu tak, aby v souboru zůstal starý záznam i nová chyba.
+
+        Než příkaz spustíte, rozmyslete si: který z obou operátorů soubor nejdřív
+        vyprázdní a co by se v takovém případě stalo s řádkem `Old error 1`?
 
         ### Příkazy
-        - V Bashi: `cp data?.txt short_data/` - ? nahradí právě jeden znak
-        - Z fish: `bash -c 'cp data?.txt short_data/'` - uvozovky ponechte
+        - `./script 2> soubor` - chybový výstup přepíše obsah souboru
+        - `./script 2>> soubor` - chybový výstup přidá na konec souboru
 
         ### Odevzdání
-        Po splnění úkolu odevzdejte: `shellgame submit`
+        Odevzdejte název souboru.
+        `shellgame submit <název>`
         """
     hints = [
-        "Otazník nahradí právě jeden znak. Kolik znaků je mezi 'data' a '.txt' v data1.txt?",
-        "data?.txt zachytí data1.txt a data2.txt, ale ne data10.txt (tam jsou dva znaky).",
-        "V Bashi použijte `cp data?.txt short_data/`. Z fish: `bash -c 'cp data?.txt short_data/'`.",
+        "Jaký je rozdíl mezi > a >>? Jeden přepisuje, druhý přidává.",
+        "Pro přidání chyb na konec použijte dvě šipky: 2>>",
+        "Použijte './buggy.sh 2>> errors.log'.",
     ]
-    start_directory = "question"
+    start_directory = ""
     fixture = WorkspaceFixture(
-        directories=("question/short_data",),
         files=(
-            FileFixture("question/data1.txt"),
-            FileFixture("question/data2.txt"),
-            FileFixture("question/data10.txt"),
-        ),
-        clean=("question/short_data",),
-    )
-    completion = Completion(
-        requirements=(
-            FileExists("question/short_data/data1.txt"),
-            FileExists("question/short_data/data2.txt"),
-            FileExists("question/short_data/data10.txt", should_exist=False),
+            FileFixture("buggy.sh", _BUGGY_SCRIPT, mode=0o755),
+            FileFixture("errors.log", "Old error 1\n"),
         )
     )
+    completion = Completion(
+        answer=ExactAnswer("errors.log"),
+        requirements=(
+            TextFileContent(
+                "errors.log",
+                contains=("Old error 1",),
+                error_message="Původní obsah zmizel (použili jste 2> místo 2>>?).",
+                missing_message="Soubor neexistuje.",
+            ),
+            TextFileContent(
+                "errors.log",
+                contains=("This is an error message",),
+                error_message="Soubor neobsahuje novou chybu.",
+            ),
+        ),
+    )
+    success_message = "Správně! Dvojitá šipka zapisuje na konec, takže předchozí záznamy v logu zůstaly zachovány."
 
 
 @section.level(3)
-class CharacterClassWildcardCopyLevel(Level):
-    solution = Solution(steps=(RunShell("cp file_[ab].txt ab_files/"),), answer=None)
-    title = "Výběr znaků []"
+class AllOutputToFileLevel(Level):
+    solution = Solution(steps=(RunShell("./buggy.sh &> all_output.log"),), answer="all_output.log")
+    title = "Všechny výstupy"
     instructions = """
-        # Výběr znaků []
+        Někdy chcete zachytit VŠECHNO - normální výstup i chyby do jednoho souboru.
+        K tomu slouží `&>`.
 
-        Hranaté závorky `[...]` nahradí JEDEN ze znaků uvnitř.
-        Například `[abc]` odpovídá znaku 'a', 'b' nebo 'c'.
-
-        ### Požadavek: Bash
-        Tento level vyžaduje **Bash**. Ve fish použijte variantu s `bash -c` níže.
-        Ta spustí pouze kopírování v Bashi; odevzdávejte dál ve svém herním shellu.
-
-        ### Příklady
-        - `file_[ab].txt` → file_a.txt, file_b.txt
-        - `log[123].txt` → log1.txt, log2.txt, log3.txt
+        ### Proč je to užitečné
+        Při ladění skriptů nebo automatizaci často potřebujete kompletní log
+        všeho, co program vypsal - ať už to byla informace nebo chyba.
 
         ### Úkol
-        Zkopírujte `file_a.txt` a `file_b.txt` do adresáře `ab_files/`.
-        NEKOPÍRUJTE `file_c.txt`.
+        Spusťte `buggy.sh` a přesměrujte OBOJÍ (stdout i stderr) do `all_output.log`.
 
         ### Příkazy
-        - V Bashi: `cp file_[ab].txt ab_files/`
-        - Z fish: `bash -c 'cp file_[ab].txt ab_files/'` - uvozovky ponechte
+        - `./script &> soubor` - přesměruje stdout i stderr
 
         ### Odevzdání
-        Po splnění úkolu odevzdejte: `shellgame submit`
+        Odevzdejte název souboru.
+        `shellgame submit <název>`
         """
     hints = [
-        "Hranaté závorky definují množinu povolených znaků na dané pozici.",
-        "[ab] znamená 'a nebo b', takže file_[ab].txt zachytí file_a.txt a file_b.txt.",
-        "V Bashi použijte `cp file_[ab].txt ab_files/`. Z fish: `bash -c 'cp file_[ab].txt ab_files/'`.",
+        "Ampersand (&) v tomto kontextu znamená 'obojí' - stdout i stderr.",
+        "Kombinace &> je zkratka pro přesměrování obou výstupů.",
+        "Použijte './buggy.sh &> all_output.log'.",
     ]
-    start_directory = "brackets"
+    start_directory = ""
     fixture = WorkspaceFixture(
-        directories=("brackets/ab_files",),
-        files=(
-            FileFixture("brackets/file_a.txt"),
-            FileFixture("brackets/file_b.txt"),
-            FileFixture("brackets/file_c.txt"),
-        ),
-        clean=("brackets/ab_files",),
+        files=(FileFixture("buggy.sh", _BUGGY_SCRIPT, mode=0o755),),
+        clean=("all_output.log",),
     )
     completion = Completion(
+        answer=ExactAnswer("all_output.log"),
         requirements=(
-            FileExists("brackets/ab_files/file_a.txt"),
-            FileExists("brackets/ab_files/file_b.txt"),
-            FileExists("brackets/ab_files/file_c.txt", should_exist=False),
-        )
+            TextFileContent(
+                "all_output.log",
+                contains=("This is normal output", "This is an error message"),
+                error_message=(
+                    "Soubor neobsahuje oba typy výstupů. "
+                    "Chybí-li normální výstup, přesměrovali jste jen chyby (2>). "
+                    "Chybí-li chyby, zůstaly na obrazovce, protože samotné > bere jen stdout."
+                ),
+                missing_message="Soubor neexistuje.",
+            ),
+        ),
     )
+    success_message = "Správně! Máme všechno."
 
 
 @section.level(4)
-class RangeWildcardCopyLevel(Level):
-    solution = Solution(steps=(RunShell("cp [a-z]*.txt lowercase/"),), answer=None)
-    title = "Rozsahy [a-z]"
+class DevNullLevel(Level):
+    solution = Solution(steps=(RecordFdEvidence(),), answer="/dev/null")
+    title = "Černá díra"
     instructions = """
-        # Rozsahy znaků [a-z]
+        `/dev/null` je speciální soubor, který zahodí všechno, co do něj pošlete.
+        Je užitečný pro umlčení hlučných příkazů.
 
-        Uvnitř hranatých závorek můžete zadat rozsah znaků pomocí pomlčky `-`.
-        - `[a-z]` odpovídá jakémukoliv malému písmenu
-        - `[0-9]` odpovídá jakékoliv číslici
-        - `[A-Z]` odpovídá jakémukoliv velkému písmenu
-
-        ### Příklady
-        - `[a-c]` = a, b, nebo c
-        - `[0-5]` = 0, 1, 2, 3, 4, nebo 5
-
-        ### Požadavek: Bash
-        Tento level vyžaduje **Bash**. Ve fish použijte variantu s `bash -c` níže.
-        Ta spustí pouze kopírování v Bashi; odevzdávejte dál ve svém herním shellu.
+        ### Proč je to užitečné
+        Některé příkazy vypisují spoustu informací, které nepotřebujete.
+        Místo zahlcení obrazovky je můžete "poslat do černé díry".
 
         ### Úkol
-        Zkopírujte všechny soubory `.txt` začínající malým písmenem do adresáře `lowercase/`.
-        NEKOPÍRUJTE soubory začínající velkým písmenem.
+        Spusťte `buggy.sh` a umlčte VŠECHNY výstupy (stdout i stderr) přesměrováním do `/dev/null`.
 
         ### Příkazy
-        - V Bashi: `cp [a-z]*.txt lowercase/`
-        - Z fish: `bash -c 'cp [a-z]*.txt lowercase/'` - uvozovky ponechte
-
-        Přípona `.txt` vyloučí cílový adresář `lowercase`, který také začíná malým písmenem.
+        - `./script &> /dev/null` - zahodí veškerý výstup
 
         ### Odevzdání
-        Po splnění úkolu odevzdejte: `shellgame submit`
+        Odevzdejte název speciálního souboru, který jste použili.
+        `shellgame submit <název>`
         """
     hints = [
-        "Rozsah [a-z] vybere všechna malá písmena od 'a' do 'z'.",
-        "Vzor [a-z]*.txt vybere názvy začínající malým písmenem a končící příponou .txt.",
-        "V Bashi použijte `cp [a-z]*.txt lowercase/`. Z fish: `bash -c 'cp [a-z]*.txt lowercase/'`.",
+        "Kam v Linuxu 'vyhodíte' data, která nechcete? Existuje speciální soubor...",
+        "Soubor /dev/null je jako černá díra - vše pohltí a nic nevrátí.",
+        "Použijte './buggy.sh &> /dev/null'.",
     ]
-    start_directory = "ranges"
+    start_directory = ""
     fixture = WorkspaceFixture(
-        directories=("ranges/lowercase",),
         files=(
-            FileFixture("ranges/apple.txt"),
-            FileFixture("ranges/Banana.txt"),
-            FileFixture("ranges/cherry.txt"),
-            FileFixture("ranges/Date.txt"),
-        ),
-        clean=("ranges/lowercase",),
-    )
-    completion = Completion(
-        requirements=(
-            FileExists("ranges/lowercase/apple.txt"),
-            FileExists("ranges/lowercase/cherry.txt"),
-            FileExists("ranges/lowercase/Banana.txt", should_exist=False),
-            FileExists("ranges/lowercase/Date.txt", should_exist=False),
+            FileFixture(
+                "buggy.sh",
+                _BUGGY_SCRIPT + '"$SHELLGAME_FD_HOOK"\n',
+                mode=0o755,
+            ),
         )
     )
+    completion = Completion(
+        answer=ExactAnswer(
+            "/dev/null",
+            mistakes={
+                "null": "Skoro. Odevzdejte celou cestu k tomu speciálnímu souboru, ne jen jeho název.",
+                "dev/null": "Téměř. Jde o absolutní cestu, začíná tedy lomítkem od kořenového adresáře.",
+            },
+        ),
+        requirements=(
+            Evidence(
+                MarkerManager.LEVEL9_4_DEV_NULL,
+                "Spusťte `./buggy.sh` a přesměrujte stdout i stderr do `/dev/null`.",
+            ),
+        ),
+    )
+    success_message = "Správně! Zápis do /dev/null se rovnou zahodí, takže příkaz umlčíte bez zakládání logu."
+
+    @override
+    def record_fd_evidence(
+        self,
+        *,
+        stdout_target: str,
+        stderr_target: str,
+        state: GameStateProtocol,
+    ) -> None:
+        if stdout_target == "/dev/null" and stderr_target == "/dev/null":
+            MarkerManager.from_state(state).create(MarkerManager.LEVEL9_4_DEV_NULL)
 
 
 @section.level(5)
-class WildcardsChallengeLevel(Level):
-    solution = Solution(answer="3,4,report_final.csv")
+class StreamsChallengeLevel(Level):
+    solution = Solution(
+        steps=(RunShell("./mixed.sh > output.log 2> errors.log"),),
+        answer="2,3",
+    )
     title = "Souhrn Sekce 10"
     instructions = """
-        ### Výzva: Mistr wildcardů
+        ### Výzva: Oddělení streamů
 
-        Ukažte, že ovládáte zástupné znaky!
+        Ukažte, že umíte uložit stdout a stderr odděleně.
 
         ### Úkol
-        V `level-10/challenge`:
+        V `level-10/challenge` je skript `mixed.sh` který vypisuje:
+        - normální výstup na stdout
+        - chyby na stderr
 
-        1. Vypište **pouze** soubory končící na `.log` pomocí `ls *.log`
-        2. Spočítejte, kolik je `.txt` souborů
-        3. Najděte soubor, který začíná na `report` a má příponu `.csv`
+        Spusťte skript **jednou** a současně uložte:
+        1. pouze normální výstup do `output.log`
+        2. pouze chyby do `errors.log`
 
-        ### Formát odpovědi
-        `<pocet_log>,<pocet_txt>,<nazev_csv>`
+        Odpovězte: kolik řádků má errors.log a kolik output.log?
+        Formát: `chyby,výstup` (např. `3,5`)
 
-        Příklad: `5,3,report_2024.csv`
+        ### Připomenutí
+        - `>` přesměruje standardní výstup.
+        - `2>` přesměruje chybový výstup.
 
-        ### Shrnutí příkazů Sekce 10 (Bash)
-        ```
-        *           → libovolné znaky (i žádné)
-        ?           → právě jeden znak
-        [abc]       → jeden znak z množiny
-        [a-z]       → jeden znak z rozsahu
-        ls *.txt    → soubory končící na .txt
-        rm temp*    → smaže vše začínající na temp
-        ```
+        V této výzvě potřebujete oba proudy zachytit zvlášť.
 
         ### Odevzdání
-        `shellgame submit <log>,<txt>,<csv>`
+        `shellgame submit <chyby>,<výstup>`
         """
     hints = [
-        "Zástupný znak '*' vybere všechny soubory s danou příponou (např. *.log nebo *.txt).",
-        "Příkazy 'ls *.log' a 'ls *.txt' vypíší hledané soubory. Spočítat je můžete i přes '| wc -l'.",
-        "Hledaný CSV soubor najdete přes 'ls report*.csv'. Odpověď odevzdejte jako tři hodnoty oddělené čárkou.",
+        (
+            "Chyby se zapisují na stderr (descriptor 2), standardní výstup na stdout (descriptor 1). "
+            "Každý proud může mít vlastní cíl."
+        ),
+        (
+            "Za jeden příkaz lze zapsat přesměrování '>' i '2>'; pořadí zde nevadí, "
+            "protože oba proudy míří do různých souborů."
+        ),
+        "Spusťte './mixed.sh > output.log 2> errors.log'. Počty zjistěte pomocí 'wc -l errors.log output.log'.",
     ]
     start_directory = "challenge"
     fixture = WorkspaceFixture(
-        files=(
-            FileFixture("challenge/app.log", "log1"),
-            FileFixture("challenge/error.log", "log2"),
-            FileFixture("challenge/debug.log", "log3"),
-            FileFixture("challenge/notes.txt", "txt1"),
-            FileFixture("challenge/readme.txt", "txt2"),
-            FileFixture("challenge/todo.txt", "txt3"),
-            FileFixture("challenge/data.txt", "txt4"),
-            FileFixture("challenge/report_final.csv", "col1,col2\n"),
-            FileFixture("challenge/script.sh", "#!/bin/bash\n"),
-            FileFixture("challenge/config.json", "{}"),
-        ),
+        files=(FileFixture("challenge/mixed.sh", _MIXED_SCRIPT, mode=0o755),),
         clean=("challenge",),
     )
     completion = Completion(
         answer=TupleAnswer(
             (
                 IntegerAnswer(
-                    3,
-                    error_message="Počet .log souborů není správně. Použijte 'ls *.log'.",
-                    invalid_message="První dvě hodnoty musí být čísla.",
+                    2,
+                    error_message=(
+                        "Počet chyb není správně. Zkontrolujte, že do errors.log směřuje pouze descriptor 2."
+                    ),
+                    invalid_message="Obě hodnoty musí být čísla.",
                 ),
                 IntegerAnswer(
-                    4,
-                    error_message="Počet .txt souborů není správně. Použijte 'ls *.txt | wc -l'.",
-                    invalid_message="První dvě hodnoty musí být čísla.",
-                ),
-                ExactAnswer(
-                    "report_final.csv",
-                    case_sensitive=False,
-                    error_message="CSV soubor není správně. Použijte 'ls report*.csv'.",
+                    3,
+                    error_message=(
+                        "Počet normálních řádků není správně. "
+                        "Zkontrolujte, že do output.log směřuje pouze standardní výstup."
+                    ),
+                    invalid_message="Obě hodnoty musí být čísla.",
                 ),
             ),
-            format_message="Formát: počet_log,počet_txt,název_csv (např. 5,3,report.csv)",
-        )
+            format_message="Formát odpovědi: chyby,výstup (např. 3,5)",
+        ),
+        requirements=(
+            FileLineCount(
+                "challenge/errors.log",
+                2,
+                (
+                    "errors.log neobsahuje přesně pouze chybový výstup skriptu. "
+                    "Buď do něj spadl i standardní výstup (oba proudy míří do jednoho souboru), "
+                    "nebo jste skript spustili víckrát a záznamy se nasčítaly."
+                ),
+            ),
+            FileLineCount(
+                "challenge/output.log",
+                3,
+                (
+                    "output.log neobsahuje přesně pouze standardní výstup skriptu. "
+                    "Buď v něm skončily i chyby (chybí samostatné přesměrování druhého proudu), "
+                    "nebo jste skript spustili víckrát a záznamy se nasčítaly."
+                ),
+            ),
+        ),
     )
-    success_message = "Výborně! Dokončili jste Sekci 10. Wildcards jsou váš nejlepší přítel!"
+    success_message = "Perfektní! Dokončili jste Sekci 10. Stdout a stderr jsou pro vás jako otevřená kniha!"

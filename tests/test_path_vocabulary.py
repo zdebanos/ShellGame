@@ -63,6 +63,7 @@ def _declared_paths(level: Level) -> list[tuple[str, str]]:
     for name, fixture in (("section_fixture", level.section_fixture), ("fixture", level.fixture)):
         if isinstance(fixture, WorkspaceFixture):
             declared.extend((name, value) for value in fixture.directories)
+            declared.extend((name, directory.path) for directory in fixture.directory_fixtures)
             declared.extend((name, file.path) for file in fixture.files)
             declared.extend((name, value) for value in fixture.clean)
 
@@ -138,7 +139,6 @@ def test_workspace_root_starts_are_explicitly_acknowledged() -> None:
         "1.0",  # section intro: the player has not entered section 1 yet
         "1.9",  # walking home from the workspace root
         "1.10",  # absolute paths, taught from the workspace root
-        "3.6",  # section checkpoint, reviewed from the workspace root
     }
     actual = {level.id for level in _all_levels() if isinstance(level.start_directory, WorkspaceRoot)}
 

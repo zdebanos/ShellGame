@@ -9,6 +9,7 @@ from shellgame.levels.completion import (
     DirectoryExists,
     ExactAnswer,
     FileExists,
+    TextFileContent,
 )
 from shellgame.levels.fixture import FileFixture, WorkspaceFixture
 from shellgame.levels.solution import RunShell, Solution
@@ -28,26 +29,26 @@ class SectionIntroLevel(Level):
 
 @section.level(1)
 class CreateFileLevel(Level):
-    solution = Solution(steps=(RunShell("touch novy_soubor.txt"),), answer="novy_soubor.txt")
+    solution = Solution(steps=(RunShell("touch novy_soubor.txt"),), answer=None)
     title = "Vytvoření souboru"
     instructions = """
-        Příkaz `touch` slouží k vytvoření prázdného souboru (nebo aktualizaci času přístupu,
-        pokud soubor již existuje).
+        ### Cíl
+        Vytvořte nový prázdný soubor.
 
-        ## Úkol
+        ### Příkazy
+        - `touch <název_souboru>` (vytvoří prázdný soubor nebo aktualizuje časové značky)
+
+        ### Úkol
         Vytvořte prázdný soubor s názvem `novy_soubor.txt` v aktuálním adresáři.
 
-        ## Příkazy
-        - `touch <název_souboru>`
-
-        ## Odevzdání
-        Odevzdejte název vytvořeného souboru.
-        `shellgame submit novy_soubor.txt`
+        ### Odevzdání
+        Až bude soubor existovat a bude zcela prázdný, spusťte:
+        `shellgame submit`
         """
     hints = [
         "Příkaz 'touch' vytvoří prázdný soubor. Jaký název má mít?",
         "Syntaxe je jednoduchá: touch název_souboru",
-        "Použijte 'touch novy_soubor.txt' a pak ověřte pomocí 'ls'.",
+        "Použijte 'touch novy_soubor.txt', ověřte výsledek pomocí 'ls -l' a spusťte 'shellgame submit'.",
     ]
     start_directory = "creation"
     fixture = WorkspaceFixture(
@@ -55,9 +56,16 @@ class CreateFileLevel(Level):
         clean=("creation/novy_soubor.txt",),
     )
     completion = Completion(
-        answer=ExactAnswer("novy_soubor.txt"),
-        requirements=(FileExists("creation/novy_soubor.txt"),),
+        requirements=(
+            FileExists("creation/novy_soubor.txt"),
+            TextFileContent(
+                "creation/novy_soubor.txt",
+                exact="",
+                error_message="Soubor novy_soubor.txt existuje, ale není prázdný.",
+            ),
+        ),
     )
+    success_message = "Správně! Soubor může vzniknout úplně prázdný a obsah do něj doplníte až později."
 
 
 @section.level(2)
@@ -65,22 +73,23 @@ class CreateDirectoryLevel(Level):
     solution = Solution(steps=(RunShell("mkdir data"),), answer="data")
     title = "Vytvoření adresáře"
     instructions = """
-        Příkaz `mkdir` (make directory) slouží k vytváření nových adresářů.
+        ### Cíl
+        Vytvořte nový adresář.
 
-        ## Úkol
+        ### Příkazy
+        - `mkdir <název_adresáře>` (make directory)
+
+        ### Úkol
         Vytvořte adresář s názvem `data` v aktuálním adresáři.
 
-        ## Příkazy
-        - `mkdir <název_adresáře>`
-
-        ## Odevzdání
-        Odevzdejte název vytvořeného adresáře.
-        `shellgame submit data`
+        ### Odevzdání
+        Odevzdejte název vytvořeného adresáře:
+        `shellgame submit <název>`
         """
     hints = [
         "Příkaz 'mkdir' slouží k vytvoření nového adresáře.",
         "Spusťte 'mkdir data' pro vytvoření adresáře data.",
-        "Ověřte pomocí 'ls -F' (adresáře mají lomítko) a odevzdejte 'data'.",
+        "Ověřte pomocí 'ls -l' (řádek adresáře začíná 'd') a odevzdejte 'data'.",
     ]
     start_directory = "creation"
     fixture = WorkspaceFixture(
@@ -89,30 +98,41 @@ class CreateDirectoryLevel(Level):
     )
     completion = Completion(
         answer=ExactAnswer("data"),
-        requirements=(DirectoryExists("creation/data"),),
+        requirements=(
+            DirectoryExists(
+                "creation/data",
+                error_message=(
+                    "Požadovaný adresář zatím neexistuje. Ověřte pomocí 'ls -l', "
+                    "že jste ho založili v aktuálním adresáři a bez překlepu v názvu."
+                ),
+            ),
+        ),
     )
+    success_message = "Správně! Nový adresář vznikne jediným příkazem a hned do něj můžete vstoupit."
 
 
 @section.level(3)
 class NestedDirectoryCreationLevel(Level):
-    solution = Solution(steps=(RunShell("mkdir -p projekt/src/tests"),), answer="projekt/src/tests")
+    solution = Solution(steps=(RunShell("mkdir -p projekt/src/tests"),), answer=None)
     title = "Vytváření zanořených adresářů"
     instructions = """
-        Pokud chcete vytvořit celou cestu adresářů najednou (např. `projekt/src/main`),
-        příkaz `mkdir` by normálně selhal, pokud rodičovské adresáře neexistují.
+        ### Cíl
+        Vytvořte zanořenou strukturu adresářů jedním příkazem.
 
-        Přepínač `-p` (parents) řekne příkazu `mkdir`, aby vytvořil i všechny chybějící
-        rodičovské adresáře.
+        ### Vytváření cest s přepínačem `-p`
+        Při vytváření celé cesty (např. `projekt/src/tests`) příkaz `mkdir` bez přepínače
+        selže, pokud nadřazené adresáře neexistují.
+        Přepínač `-p` (parents) vytvoří celou cestu včetně chybějících rodičovských adresářů.
 
-        ## Úkol
-        Vytvořte strukturu adresářů `projekt/src/tests` jedním příkazem.
+        ### Příkazy
+        - `mkdir -p <cesta>` (vytvoří adresář včetně všech chybějících nadřazených složek)
 
-        ## Příkazy
-        - `mkdir -p <cesta>`
+        ### Úkol
+        Vytvořte strukturu adresářů `projekt/src/tests`.
 
-        ## Odevzdání
-        Odevzdejte celou cestu, kterou jste vytvořili.
-        `shellgame submit projekt/src/tests`
+        ### Odevzdání
+        Až bude celá struktura vytvořená, spusťte:
+        `shellgame submit`
         """
     hints = [
         "Co se stane, když zkusíte 'mkdir projekt/src/tests' bez přepínače -p?",
@@ -125,9 +145,18 @@ class NestedDirectoryCreationLevel(Level):
         clean=("nested/projekt",),
     )
     completion = Completion(
-        answer=ExactAnswer("projekt/src/tests"),
-        requirements=(DirectoryExists("nested/projekt/src/tests"),),
+        requirements=(
+            DirectoryExists(
+                "nested/projekt/src/tests",
+                error_message=(
+                    "Struktura projekt/src/tests zatím není celá. Zkontrolujte ji pomocí 'ls -R projekt': "
+                    "bez přepínače -p vytvoří mkdir jen poslední článek cesty, a to jen když jeho rodič už existuje. "
+                    "S -p vzniknou chybějící rodičovské adresáře zároveň s ním."
+                ),
+            ),
+        )
     )
+    success_message = "Správně! Přepínač -p vytvoří celou cestu naráz, takže rodiče nemusíte zakládat po jednom."
 
 
 @section.level(4)
@@ -135,24 +164,23 @@ class DeleteFileLevel(Level):
     solution = Solution(steps=(RunShell("rm stary_log.txt"),), answer="stary_log.txt")
     title = "Mazání souborů"
     instructions = """
-        Příkaz `rm` (remove) slouží k mazání souborů.
+        ### Cíl
+        Smažte nepotřebný soubor.
 
-        ### Důležité varování
-        Smazané soubory v příkazové řádce NEJDOU DO KOŠE! Jsou nenávratně pryč.
+        ### Příkazy
+        - `rm <soubor>` (remove — smaže zadaný soubor)
 
-        ### Bezpečnostní tipy
-        - `rm -i soubor` (zeptá se před smazáním)
-        - Před `rm *.log` si zkontrolujte `ls *.log`
+        ### ⚠️ Důležité varování
+        Příkaz `rm` nepřesouvá soubory do koše jako grafické prostředí — maže je okamžitě a nevratně.
+        - `rm -i <soubor>` se před smazáním zeptá na potvrzení.
+        - Před hromadným mazáním (např. `rm *.log`) si obsah zkontrolujte pomocí `ls *.log`.
 
-        ## Úkol
+        ### Úkol
         Smažte soubor `stary_log.txt`, který se nachází v aktuálním adresáři.
 
-        ## Příkazy
-        - `rm <soubor>`
-
-        ## Odevzdání
-        Odevzdejte název smazaného souboru.
-        `shellgame submit stary_log.txt`
+        ### Odevzdání
+        Odevzdejte název smazaného souboru:
+        `shellgame submit <název>`
         """
     hints = [
         "Příkaz rm permanentně maže soubory. Jaký soubor máte smazat?",
@@ -165,8 +193,18 @@ class DeleteFileLevel(Level):
     )
     completion = Completion(
         answer=ExactAnswer("stary_log.txt"),
-        requirements=(FileExists("cleanup/stary_log.txt", should_exist=False),),
+        requirements=(
+            FileExists(
+                "cleanup/stary_log.txt",
+                should_exist=False,
+                error_message=(
+                    "Soubor stary_log.txt tu pořád je. Zkontrolujte pomocí 'ls', že mažete ve správném "
+                    "adresáři a že jste název napsali bez překlepu."
+                ),
+            ),
+        ),
     )
+    success_message = "Správně! Mazání v shellu je okamžité a nevratné, proto se vyplatí nejdřív ověřit, co mažete."
 
 
 @section.level(5)
@@ -174,21 +212,19 @@ class DeleteDirectoryLevel(Level):
     solution = Solution(steps=(RunShell("rm -r temp"),), answer="temp")
     title = "Mazání adresářů"
     instructions = """
-        Pro mazání prázdných adresářů slouží příkaz `rmdir`.
-        Pokud adresář není prázdný, `rmdir` selže.
+        ### Cíl
+        Smažte adresář i s jeho obsahem.
 
-        Pro smazání adresáře i s jeho obsahem použijte `rm -r` (recursive).
+        ### Příkazy
+        - `rmdir <adresář>` (odstraní prázdný adresář; s obsahem selže)
+        - `rm -r <adresář>` (recursive — rekurzivně smaže adresář i s obsahem)
 
-        ## Úkol
+        ### Úkol
         Smažte adresář `temp`, který obsahuje nějaké dočasné soubory.
 
-        ## Příkazy
-        - `rmdir <adresář>` (jen prázdný)
-        - `rm -r <adresář>` (rekurzivně i s obsahem)
-
-        ## Odevzdání
-        Odevzdejte název smazaného adresáře.
-        `shellgame submit temp`
+        ### Odevzdání
+        Odevzdejte název smazaného adresáře:
+        `shellgame submit <název>`
         """
     hints = [
         "Zkuste nejdřív 'rmdir temp'. Co se stane?",
@@ -199,8 +235,19 @@ class DeleteDirectoryLevel(Level):
     fixture = WorkspaceFixture(files=(FileFixture("cleanup/temp/junk.txt", "junk"),))
     completion = Completion(
         answer=ExactAnswer("temp"),
-        requirements=(DirectoryExists("cleanup/temp", should_exist=False),),
+        requirements=(
+            DirectoryExists(
+                "cleanup/temp",
+                should_exist=False,
+                error_message=(
+                    "Zadaný adresář tu pořád je. Pokud rmdir skončil hláškou 'Directory not empty', "
+                    "pracoval přesně podle očekávání: umí odstranit jen prázdný adresář a nesmí se dotknout obsahu. "
+                    "Adresář s obsahem proto smažte až rekurzivní variantou příkazu rm."
+                ),
+            ),
+        ),
     )
+    success_message = "Správně! Prázdný adresář zvládne rmdir, na adresář s obsahem je potřeba rekurzivní mazání."
 
 
 @section.level(6)
@@ -211,22 +258,27 @@ class ProjectScaffoldLevel(Level):
     )
     title = "Příprava projektu"
     instructions = """
-        ## Úkol
-        Vytvořte následující strukturu v adresáři `web`:
+        ### Cíl
+        Připravte kompletní kostru nového projektu.
 
+        ### Příkazy k použití
+        - `mkdir -p <cesta>` pro adresáře
+        - `touch <cesta>` pro soubory
+
+        ### Úkol
+        Vytvořte následující strukturu v adresáři `web`:
         - `web/index.html` (soubor)
         - `web/css/style.css` (soubor v podadresáři)
         - `web/js` (prázdný adresář)
 
-        Použijte kombinaci `mkdir -p` a `touch`.
-
-        ## Odevzdání
-        Odevzdejte název kořenového adresáře projektu.
-        `shellgame submit web`
+        ### Odevzdání
+        Odevzdejte název kořenového adresáře projektu:
+        `shellgame submit <název>`
         """
     hints = [
-        "Nejdřív vytvořte adresáře: 'mkdir -p web/css web/js'",
-        "Pak vytvořte soubory: 'touch web/index.html web/css/style.css'",
+        "Nejdřív si rozdělte úkol na adresáře a soubory. Všechny potřebné adresáře lze vytvořit jedním příkazem.",
+        "Pro adresáře použijte 'mkdir -p' a pro prázdné soubory 'touch'; oba příkazy přijímají více cest.",
+        "Spusťte 'mkdir -p web/css web/js' a potom 'touch web/index.html web/css/style.css'.",
     ]
     start_directory = "project"
     fixture = WorkspaceFixture(
@@ -236,37 +288,49 @@ class ProjectScaffoldLevel(Level):
     completion = Completion(
         answer=ExactAnswer("web"),
         requirements=(
-            FileExists("project/web/index.html"),
-            FileExists("project/web/css/style.css"),
-            DirectoryExists("project/web/js"),
+            FileExists(
+                "project/web/index.html",
+                error_message="Chybí soubor web/index.html. Prázdný soubor založí 'touch'.",
+            ),
+            FileExists(
+                "project/web/css/style.css",
+                error_message=(
+                    "Chybí soubor web/css/style.css. Nejdřív musí existovat podadresář css, "
+                    "teprve potom do něj lze soubor založit."
+                ),
+            ),
+            DirectoryExists(
+                "project/web/js",
+                error_message="Chybí adresář web/js. Má zůstat prázdný, ale existovat musí.",
+            ),
         ),
     )
+    success_message = "Správně! Kostru projektu připravíte předem: adresáře jedním příkazem, prázdné soubory druhým."
 
 
 @section.level(7)
 class CleanupMultipleFilesLevel(Level):
-    solution = Solution(steps=(RunShell("rm error.log temp.dat junk.tmp"),), answer="mess")
+    solution = Solution(steps=(RunShell("rm error.log temp.dat junk.tmp"),), answer=None)
     title = "Úklid nepořádku"
     instructions = """
-        Někdy je potřeba smazat více souborů najednou. Příkaz `rm` přijímá více argumentů.
+        ### Cíl
+        Smažte více souborů najednou a zachovejte důležitá data.
 
-        ## Úkol
-        V adresáři `mess` se nachází tři soubory, které je třeba smazat:
-        `error.log`, `temp.dat` a `junk.tmp`.
+        ### Příkazy
+        - `rm soubor1 soubor2 ...` (smaže více souborů najednou)
 
-        Smažte je všechny.
+        ### Úkol
+        V adresáři `mess` smažte soubory `error.log`, `temp.dat` a `junk.tmp`.
+        Soubor `keep_me.txt` musí zůstat zachovaný. Hodnotí se výsledný stav, ne počet příkazů.
 
-        ## Příkazy
-        - `rm soubor1 soubor2 soubor3`
-
-        ## Odevzdání
-        Odevzdejte název adresáře, který jste vyčistili.
-        `shellgame submit mess`
+        ### Odevzdání
+        Až budou nepotřebné soubory pryč, spusťte:
+        `shellgame submit`
         """
     hints = [
         "Příkaz 'rm' dokáže smazat více souborů najednou, stačí je uvést oddělené mezerami.",
         "Spusťte 'rm error.log temp.dat junk.tmp' (nebo je smažte postupně po jednom).",
-        "Ověřte pomocí 'ls', že zbyly jen potřebné soubory, a odevzdejte 'mess'.",
+        "Ověřte pomocí 'ls', že zůstal jen soubor keep_me.txt, a spusťte 'shellgame submit'.",
     ]
     start_directory = "mess"
     fixture = WorkspaceFixture(
@@ -278,14 +342,21 @@ class CleanupMultipleFilesLevel(Level):
         )
     )
     completion = Completion(
-        answer=ExactAnswer("mess"),
         requirements=(
             FileExists("mess/error.log", should_exist=False),
             FileExists("mess/temp.dat", should_exist=False),
             FileExists("mess/junk.tmp", should_exist=False),
-            FileExists("mess/keep_me.txt"),
+            FileExists(
+                "mess/keep_me.txt",
+                error_message=(
+                    "Soubor keep_me.txt zmizel, a ten měl zůstat. Typická příčina je příliš široký "
+                    "argument jako 'rm *', který smaže všechno v adresáři. Příště si nejdřív vypište, "
+                    "co by takový příkaz zasáhl. Level obnovíte příkazem 'shellgame reset'."
+                ),
+            ),
         ),
     )
+    success_message = "Správně! Jeden příkaz zvládne víc cest, ale odpovídáte za to, které soubory zasáhne."
 
 
 @section.level(8)
@@ -296,7 +367,7 @@ class SectionChallengeLevel(Level):
             RunShell("touch myproject/README.md"),
             RunShell("rm delete_me.txt && rmdir empty_dir"),
         ),
-        answer="builder",
+        answer=None,
     )
     title = "Souhrn Sekce 4"
     instructions = """
@@ -312,8 +383,6 @@ class SectionChallengeLevel(Level):
         3. Smažte existující soubor `delete_me.txt`
         4. Smažte existující prázdný adresář `empty_dir`
 
-        Pak odevzdejte heslo: **builder**
-
         ### Shrnutí příkazů Sekce 4
         ```
         mkdir adresar       → Nový adresář
@@ -325,12 +394,18 @@ class SectionChallengeLevel(Level):
         ```
 
         ### Odevzdání
-        `shellgame submit builder`
+        Po splnění všech bodů spusťte `shellgame submit`.
         """
     hints = [
-        "Postupujte krok za krokem. Začněte s 'mkdir -p myproject/src myproject/docs'.",
-        "Pro soubor: 'touch myproject/README.md'. Pro mazání: 'rm delete_me.txt' a 'rmdir empty_dir'.",
-        "Zkontrolujte strukturu pomocí 'ls -R myproject' a pak odevzdejte heslo ze zadání.",
+        ("Rozdělte úkol na výsledky: dva adresáře a jeden soubor vytvořit, dvě existující položky odstranit."),
+        (
+            "Vnořené adresáře vytvoří 'mkdir -p'; prázdný soubor 'touch'. "
+            "Soubor a prázdný adresář se mažou různými příkazy."
+        ),
+        (
+            "Použijte 'mkdir -p myproject/src myproject/docs', 'touch myproject/README.md', "
+            "'rm delete_me.txt' a 'rmdir empty_dir'."
+        ),
     ]
     start_directory = "challenge"
     fixture = WorkspaceFixture(
@@ -339,16 +414,10 @@ class SectionChallengeLevel(Level):
         clean=("challenge",),
     )
     completion = Completion(
-        answer=ExactAnswer(
-            "builder",
-            case_sensitive=False,
-            error_message="Heslo není správné. Splňte nejdřív všechny body úkolu.",
-            required_message="Musíte zadat heslo.",
-        ),
         requirements=(
             DirectoryExists(
                 "challenge/myproject/src",
-                error_message="Chybí adresář myproject/src. Použijte 'mkdir -p myproject/src'.",
+                error_message="Chybí adresář myproject/src. Zkontrolujte vytvořenou strukturu.",
             ),
             DirectoryExists(
                 "challenge/myproject/docs",
@@ -356,17 +425,17 @@ class SectionChallengeLevel(Level):
             ),
             FileExists(
                 "challenge/myproject/README.md",
-                error_message="Chybí soubor myproject/README.md. Použijte 'touch myproject/README.md'.",
+                error_message="Chybí soubor myproject/README.md. Zkontrolujte jeho název a umístění.",
             ),
             FileExists(
                 "challenge/delete_me.txt",
                 should_exist=False,
-                error_message="Soubor delete_me.txt nebyl smazán. Použijte 'rm delete_me.txt'.",
+                error_message="Soubor delete_me.txt stále existuje.",
             ),
             DirectoryExists(
                 "challenge/empty_dir",
                 should_exist=False,
-                error_message="Adresář empty_dir nebyl smazán. Použijte 'rmdir empty_dir'.",
+                error_message="Prázdný adresář empty_dir stále existuje.",
             ),
         ),
     )

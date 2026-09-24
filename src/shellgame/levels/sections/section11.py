@@ -27,46 +27,49 @@ class SectionIntro(Level):
 
 
 @section.level(1)
-class GrepPasswordLineToFileLevel(Level):
+class GrepConfigLineToFileLevel(Level):
     solution = Solution(
-        steps=(RunShell("grep PASSWORD config.txt > pass.txt"),),
-        answer="pass.txt",
+        steps=(RunShell("grep ACTIVE_PROFILE config.txt > profile.txt"),),
+        answer="profile.txt",
     )
     title = "Hledání v souboru (grep)"
     instructions = """
         ### Cíl
-        Najděte řádek obsahující `PASSWORD` v souboru `config.txt` a uložte ho do `pass.txt`.
+        Najděte řádek obsahující `ACTIVE_PROFILE` v souboru `config.txt` a uložte ho do `profile.txt`.
 
         ### Příkazy
         - `grep "vzor" soubor` - hledá vzor v souboru
         - `grep "vzor" soubor > výstup` - uloží nalezené řádky do souboru
 
         ### Úkol
-        1. Najděte řádek s `PASSWORD`
-        2. Přesměrujte výsledek do `pass.txt`
+        1. Najděte řádek s `ACTIVE_PROFILE`
+        2. Přesměrujte výsledek do `profile.txt`
 
         ### Odevzdání
         Odevzdejte název vytvořeného souboru:
-        `shellgame submit pass.txt`
+        `shellgame submit <název-souboru>`
         """
     hints = [
         "Příkaz `grep` hledá zadaný vzor v souborech.",
-        "Vyhledejte slovo 'PASSWORD' v souboru 'config.txt' a výstup přesměrujte pomocí `>` do `pass.txt`.",
-        "Spusťte `grep PASSWORD config.txt > pass.txt` a zkontrolujte výsledek pomocí `cat pass.txt`.",
+        "Vyhledejte klíč 'ACTIVE_PROFILE' v souboru 'config.txt' a výstup přesměrujte pomocí `>`.",
+        "Spusťte `grep ACTIVE_PROFILE config.txt > profile.txt` a výsledek ověřte pomocí `cat profile.txt`.",
     ]
     start_directory = "grep"
     fixture = WorkspaceFixture(
-        clean=("grep/pass.txt", "grep/config.txt"),
+        clean=("grep/profile.txt", "grep/config.txt"),
         files=(
-            FileFixture("grep/config.txt", "user=admin\nhost=localhost\nport=8080\nPASSWORD=Secret123\ndebug=true\n"),
+            FileFixture(
+                "grep/config.txt",
+                "user=admin\nhost=localhost\nport=8080\nACTIVE_PROFILE=production\ndebug=true\n",
+            ),
         ),
     )
     completion = Completion(
-        answer=ExactAnswer("pass.txt"),
+        answer=ExactAnswer("profile.txt"),
         requirements=(
             TextFileContent(
                 "grep/config.txt",
-                contains=("PASSWORD=Secret123",),
+                contains=("ACTIVE_PROFILE=production",),
                 error_message="Zdrojový soubor config.txt chybí. Obnovte level příkazem `shellgame reset`.",
                 missing_message="Zdrojový soubor config.txt chybí. Obnovte level příkazem `shellgame reset`.",
                 unreadable_message=(
@@ -74,15 +77,16 @@ class GrepPasswordLineToFileLevel(Level):
                 ),
             ),
             TextFileContent(
-                "grep/pass.txt",
-                exact="PASSWORD=Secret123",
+                "grep/profile.txt",
+                exact="ACTIVE_PROFILE=production",
                 strip=True,
                 error_message="Soubor neobsahuje přesně hledaný řádek.",
-                missing_message="Výstup pass.txt musí být soubor. Obnovte level příkazem `shellgame reset`.",
-                unreadable_message="Soubor pass.txt nelze přečíst. Obnovte level příkazem `shellgame reset`.",
+                missing_message="Výstup profile.txt musí být soubor. Obnovte level příkazem `shellgame reset`.",
+                unreadable_message="Soubor profile.txt nelze přečíst. Obnovte level příkazem `shellgame reset`.",
             ),
         ),
     )
+    success_message = "Správně! `grep` vybere jen potřebné řádky a `>` je uloží pro další použití."
 
 
 @section.level(2)
@@ -120,9 +124,13 @@ class RecursiveGrepFindFileLevel(Level):
     completion = Completion(
         answer=SuffixAnswer(
             "config/settings.py",
-            error_message="To není správný soubor. Hledáme ten s 'SECRET_KEY'.",
+            error_message=(
+                "To není správná odpověď. `grep -r` vypisuje před dvojtečkou celou relativní cestu — "
+                "odevzdejte ji i s adresáři, ne jen samotný název souboru. Úvodní `./` nevadí."
+            ),
         )
     )
+    success_message = "Správně! S přepínačem -r prochází grep celý strom adresářů a u každého nálezu uvede cestu."
 
 
 @section.level(3)
@@ -187,7 +195,7 @@ class FindLostFilePathLevel(Level):
         Pomocí `find` najděte soubor `lost_file.txt` někde uvnitř `messy_dir`.
 
         ### Příkazy
-        - `find adresář -name "název"` - hledá soubory podle názvu
+        - `find adresář -type f -name "název"` - hledá pouze soubory podle názvu
 
         ### Úkol
         Najděte `lost_file.txt` a odevzdejte celou relativní cestu.
@@ -197,8 +205,8 @@ class FindLostFilePathLevel(Level):
         """
     hints = [
         "Příkaz `find` prohledá všechny podadresáře automaticky.",
-        'Syntaxe je: `find kde_hledat -name "co_hledat"`',
-        'Použijte: `find messy_dir -name "lost_file.txt"`.',
+        'Pro hledání souborů použijte: `find kde_hledat -type f -name "co_hledat"`.',
+        'Použijte: `find messy_dir -type f -name "lost_file.txt"`.',
     ]
     start_directory = "find"
     fixture = WorkspaceFixture(
@@ -211,38 +219,49 @@ class FindLostFilePathLevel(Level):
     completion = Completion(
         answer=SuffixAnswer(
             "messy_dir/a/b/c/d/lost_file.txt",
-            error_message="To není správná cesta.",
+            error_message=(
+                "To není správná cesta. Odevzdejte ji přesně tak, jak ji vypsal `find` — "
+                "včetně všech adresářů, ne jen název souboru. Úvodní `./` nevadí."
+            ),
         )
     )
+    success_message = "Správně! `find` hledá podle vlastností souboru, takže si poradí i s neznámým umístěním."
 
 
 @section.level(5)
 class FindPythonFilesToListLevel(Level):
-    solution = Solution(steps=(RunShell('find src_code -name "*.py" > python_files.txt'),), answer="python_files.txt")
+    solution = Solution(
+        steps=(RunShell('find src_code -type f -name "*.py" | sort > python_files.txt'),),
+        answer="python_files.txt",
+    )
     title = "Hledání podle přípony"
     instructions = """
         ### Cíl
-        Najděte všechny `.py` soubory v `src_code` a uložte seznam do `python_files.txt`.
+        Najděte všechny běžné `.py` soubory v `src_code` a uložte jejich cesty do `python_files.txt`.
+        Výstup seřaďte, aby měl vždy stejné pořadí.
 
         **Důležité:** Vzor musí být v uvozovkách: `"*.py"`.
+        Bez uvozovek by se ho nejprve pokusil rozbalit shell. S uvozovkami dostane vzor doslova `find`.
 
-        ### Příkazy
-        - `find adresář -name "*.py"` - hledá soubory s příponou .py
-        - `find ... > soubor` - uloží výsledky
+        ### Stavební prvky
+        - `find adresář -type f -name "*.py"` - hledá pouze soubory s příponou `.py`
+        - `sort` - seřadí řádky
+        - `>` - uloží výsledek
 
         ### Úkol
-        Vytvořte `python_files.txt` se seznamem nalezených `.py` souborů.
+        Vytvořte `python_files.txt` obsahující přesně seřazené cesty nalezených souborů.
 
         ### Odevzdání
-        `shellgame submit python_files.txt`
+        `shellgame submit <název-souboru>`
         """
     hints = [
-        'Nezapomeňte dát vzor do uvozovek: "*.py", ne *.py',
-        "Kombinujte find s přesměrováním `>` pro uložení výsledků.",
-        'Použijte: `find src_code -name "*.py" > python_files.txt`.',
+        "Omezte `find` na běžné soubory pomocí `-type f`; adresář s příponou `.py` se počítat nemá.",
+        "Vzor dejte do uvozovek a výstup pošlete přes `sort` před uložením pomocí `>`.",
+        'Použijte: `find src_code -type f -name "*.py" | sort > python_files.txt`.',
     ]
     start_directory = "extension"
     fixture = WorkspaceFixture(
+        directories=("extension/src_code/archive.py",),
         files=(
             FileFixture("extension/src_code/main.py"),
             FileFixture("extension/src_code/utils.py"),
@@ -256,31 +275,47 @@ class FindPythonFilesToListLevel(Level):
         requirements=(
             TextFileContent(
                 "extension/python_files.txt",
-                contains=("main.py", "utils.py"),
-                excludes=("README.txt",),
-                error_message="Soubor neobsahuje správný seznam souborů.",
-                missing_message="Soubor neexistuje.",
+                exact="src_code/main.py\nsrc_code/utils.py",
+                strip=True,
+                error_message=(
+                    "Obsah souboru nesedí. Bez `-type f` se do výpisu dostane i adresář s příponou `.py`; "
+                    "bez uvozovek kolem vzoru ho rozbalí shell ještě před spuštěním `find`. "
+                    "Nezapomeňte také na `sort`."
+                ),
+                missing_message=(
+                    "Soubor zatím neexistuje. Výstup příkazu uložte pomocí `>` do souboru zadaného v úkolu."
+                ),
             ),
         ),
     )
+    success_message = "Správně! Spojení `find`, `sort` a `>` dává výsledek, který vyjde pokaždé stejně."
 
 
 @section.level(6)
 class FinalChallengeLevel(Level):
-    solution = Solution(steps=(RunShell("cp hidden/secret.sh found/"),), answer="4,NINJA2024")
+    solution = Solution(
+        steps=(
+            RunShell('find . -type f -name "*.sh"'),
+            RunShell('grep -r "SECRET" .'),
+            RunShell("cp hidden/secret.sh found/secret.txt"),
+            RunShell('find . -type f -name "*.sh" | wc -l'),
+        ),
+        answer="4,NINJA2024",
+    )
     title = "Finální výzva"
     instructions = """
         ### 🏆 Finální výzva: Terminálový ninja
 
         Gratulujeme! Dostali jste se na konec ShellGame.
-        Tato výzva kombinuje vše, co jste se naučili.
+        Tato výzva kombinuje vyhledávání, filtrování, kopírování a počítání z posledních sekcí.
 
         ### Úkol
         V `level-11/final`:
 
-        1. Najděte **všechny** `.sh` skripty (rekurzivně) pomocí `find`
-        2. Jeden z nich obsahuje tajný kód - najděte ho pomocí `grep`
-        3. Skript s kódem **zkopírujte** do složky `found/`
+        1. Najděte **všechny soubory** s příponou `.sh` rekurzivně pomocí `find`.
+        2. Jeden z nich obsahuje tajný kód — najděte ho pomocí `grep`.
+        3. Obsah skriptu s kódem zkopírujte do `found/secret.txt`.
+        4. Počet `.sh` souborů zjistěte až po kopírování; díky příponě `.txt` zůstane stabilní.
 
         ### Struktura odpovědi
         `<počet_skriptů>,<tajný_kód>`
@@ -289,10 +324,10 @@ class FinalChallengeLevel(Level):
         `shellgame submit <počet>,<kód>`
         """
     hints = [
-        'Najděte skripty: `find . -name "*.sh"`. Hledejte kód: `grep -r "SECRET" .`',
-        "Až najdete skript s kódem, zkopírujte ho: `cp cesta/skript.sh found/`.",
-        'Počet skriptů spočítáte pomocí `find . -name "*.sh" | wc -l`. '
-        "Kód je na řádku se slovem SECRET - odevzdejte jen samotný kód.",
+        "Pro hledání skriptů spojte `find` s podmínkami `-type f` a `-name`; obsah pak prohledejte pomocí `grep`.",
+        'Skripty vypíše `find . -type f -name "*.sh"`. V nalezených souborech hledejte řádek se slovem `SECRET`.',
+        'Kopii vytvořte jako `found/secret.txt` a počet zjistěte přes `find . -type f -name "*.sh" | wc -l`. ',
+        "Odevzdejte počet a samotný kód.",
     ]
     start_directory = "final"
     fixture = WorkspaceFixture(
@@ -315,13 +350,7 @@ class FinalChallengeLevel(Level):
             (
                 IntegerAnswer(
                     4,
-                    mistakes={
-                        5: (
-                            "Skripty spočítejte před kopírováním - kopie ve `found/` "
-                            "se do počtu původních skriptů nepočítá."
-                        )
-                    },
-                    error_message=("Počet .sh skriptů není správně. Použijte 'find . -name \"*.sh\"'."),
+                    error_message=("Počet .sh souborů není správně. Použijte 'find . -type f -name \"*.sh\"'."),
                     invalid_message="První hodnota musí být číslo.",
                 ),
                 ExactAnswer(
@@ -335,14 +364,14 @@ class FinalChallengeLevel(Level):
         requirements=(
             PathsMatch(
                 "final/hidden/secret.sh",
-                "final/found/secret.sh",
+                "final/found/secret.txt",
                 error_message="Do složky found/ zkopírujte skript s tajným kódem.",
                 destination_error="Do složky found/ zkopírujte skript s tajným kódem.",
             ),
         ),
     )
     success_message = """
-🎊 GRATULUJEME! 🎊
+GRATULUJEME!
 
 Úspěšně jste dokončili ShellGame!
 

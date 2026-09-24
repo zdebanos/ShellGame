@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing_extensions import override
-
 from shellgame.levels.base import Level
 from shellgame.levels.collector import Section
 from shellgame.levels.completion import (
@@ -11,13 +9,10 @@ from shellgame.levels.completion import (
     Completion,
     ExactAnswer,
     IntegerAnswer,
-    IntegerRangeAnswer,
     TupleAnswer,
 )
 from shellgame.levels.fixture import FileFixture, WorkspaceFixture
 from shellgame.levels.solution import Chdir, Solution
-from shellgame.paths import WORKSPACE_ROOT
-from shellgame.protocols import GameStateProtocol, ValidationResult
 
 section = Section(3, root="level-3")
 
@@ -39,24 +34,24 @@ class HiddenDirCountLevel(Level):
         Najděte a spočítejte skryté adresáře.
 
         ### Příkazy k naučení
-        - `ls -a` (zobrazí všechny soubory včetně skrytých)
-        - `ls -aF` (navíc označí adresáře lomítkem `/` na konci)
+        - `ls -a` zobrazí všechny položky včetně skrytých
+        - `ls -la` navíc zobrazí podrobnosti a typ položky
 
         ### Úkol
         Nacházíte se v adresáři `level-3/hub`.
-        1. Použijte `ls -aF` pro zobrazení všech položek i jejich typů.
-        2. Spočítejte **skryté adresáře**: začínají tečkou a ve výpisu končí lomítkem.
+        1. Použijte `ls -la` pro zobrazení všech položek i jejich typů.
+        2. Spočítejte **skryté adresáře**: jejich název začíná tečkou a řádek znakem `d`.
         3. **Důležité:** Do počtu NEZAHRNUJTE speciální adresáře `.` (aktuální) a `..` (nadřazený).
 
         Odevzdejte počet nalezených skrytých adresářů (číslo).
 
-        Odevzdejte pomocí: `shellgame submit [číslo]`
+        Odevzdejte pomocí: `shellgame submit <hodnota>`
         Potřebujete pomoc? Napište: `shellgame hint`
         """
     hints = [
-        "Použijte 'ls -aF': -a zobrazí skryté položky, -F označí adresáře lomítkem.",
-        "Počítejte jen názvy začínající tečkou a končící lomítkem.",
-        "Nepočítejte './' ani '../'. Skryté soubory bez lomítka také vynechte.",
+        "Použijte 'ls -la': -a zobrazí skryté položky a -l přidá podrobnosti.",
+        "Adresář poznáte podle znaku 'd' na začátku řádku; běžný soubor začíná '-'.",
+        "Počítejte skryté názvy v řádcích začínajících 'd', ale vynechte položky '.' a '..'.",
     ]
     start_directory = "hub"
     fixture = WorkspaceFixture(
@@ -64,7 +59,17 @@ class HiddenDirCountLevel(Level):
         directories=("hub/.beta", "hub/.gamma", "hub/visible_dir"),
         files=(FileFixture("hub/.config"), FileFixture("hub/visible_file.txt")),
     )
-    completion = Completion(answer=IntegerAnswer(2))
+    completion = Completion(
+        answer=IntegerAnswer(
+            2,
+            mistakes={
+                3: "Nejspíš počítáte i skrytý soubor '.config'. Jeho řádek v 'ls -la' nezačíná 'd'.",
+                4: "Nejspíš počítáte i položky '.' a '..'. Jsou to speciální odkazy, ne hledané adresáře.",
+                5: "Nejspíš počítáte '.', '..' i skrytý soubor. Sledujte první znak řádku a přesný název.",
+            },
+        )
+    )
+    success_message = "Správně! Skryté položky zobrazí `ls -a` a typ položky poznáte podle prvního znaku řádku `ls -l`."
 
 
 @section.level(2)
@@ -80,7 +85,7 @@ class HiddenFileReadLevel(Level):
         2. Přečtěte jeho obsah pomocí `cat`.
         3. Odevzdejte obsah souboru.
 
-        Odevzdejte pomocí: `shellgame submit [obsah]`
+        Odevzdejte pomocí: `shellgame submit <obsah>`
         Potřebujete pomoc? Napište: `shellgame hint`
         """
     hints = [
@@ -91,6 +96,7 @@ class HiddenFileReadLevel(Level):
     start_directory = ""
     fixture = WorkspaceFixture(files=(FileFixture(".secret_config", "mode=stealth\n"),))
     completion = Completion(answer=ExactAnswer("mode=stealth"))
+    success_message = "Správně! Tečka na začátku názvu soubor jen skryje ve výpisu, práci s ním nijak neomezuje."
 
 
 @section.level(3)
@@ -107,7 +113,7 @@ class HiddenVaultKeyLevel(Level):
         3. Uvnitř najděte soubor `key.txt` a přečtěte ho.
         4. Odevzdejte nalezený klíč.
 
-        Odevzdejte pomocí: `shellgame submit [klíč]`
+        Odevzdejte pomocí: `shellgame submit <klíč>`
         Potřebujete pomoc? Napište: `shellgame hint`
         """
     hints = [
@@ -121,6 +127,7 @@ class HiddenVaultKeyLevel(Level):
         answer=ExactAnswer("platinum", case_sensitive=False),
         requirements=(AtDirectory("hub/.vault"),),
     )
+    success_message = "Správně! Do skrytého adresáře se vstupuje příkazem `cd` úplně stejně jako do viditelného."
 
 
 @section.level(4)
@@ -135,7 +142,7 @@ class HiddenBackupSuffixLevel(Level):
         Najděte ten, který má příponu `.bak` (záloha).
         Odevzdejte jeho celý název.
 
-        Odevzdejte pomocí: `shellgame submit [název-souboru]`
+        Odevzdejte pomocí: `shellgame submit <název-souboru>`
         Potřebujete pomoc? Napište: `shellgame hint`
         """
     hints = [
@@ -152,6 +159,7 @@ class HiddenBackupSuffixLevel(Level):
         )
     )
     completion = Completion(answer=ExactAnswer(".data.bak"))
+    success_message = "Správně! Úvodní tečka i přípona jsou součástí názvu, takže se soubor odevzdává celým jménem."
 
 
 @section.level(5)
@@ -166,27 +174,26 @@ class HiddenFilesSummaryChallengeLevel(Level):
         ### Úkol
         V adresáři `level-3/final_test` jsou normální i skryté položky.
 
-        1. Pomocí `ls -aF` spočítejte **skryté adresáře** (tečka na začátku, lomítko na konci; bez ./ a ../)
+        1. Pomocí `ls -la` spočítejte **skryté adresáře** (název začíná tečkou, řádek znakem `d`; bez `.` a `..`)
         2. Najděte skrytý soubor `.secret_code`
         3. Přečtěte jeho obsah
-        4. Odevzdejte: `<počet>,<obsah>` (např. `3,tajne123`)
+        4. Odevzdejte dvojici ve schématu `POČET,KÓD`
 
         ### Shrnutí příkazů Sekce 3
         ```
         ls -a         → Zobrazí vše včetně skrytých
-        ls -aF        → Navíc označí adresáře lomítkem
-        ls -la        → Detailní výpis všeho
+        ls -la        → Přidá podrobnosti; adresář má na začátku řádku d
         cat .soubor   → Přečíst skrytý soubor
         cd .adresar   → Vstoupit do skrytého adresáře
         ```
 
         ### Odevzdání
-        `shellgame submit <počet>,<obsah>`
+        `shellgame submit <hodnota>`
         """
     hints = [
-        "Skryté položky začínají tečkou. Použijte 'ls -la' pro zobrazení všeho včetně typů.",
-        "Adresáře poznáte podle 'd' na začátku řádku v ls -l, nebo podle / na konci v ls -F.",
-        "Řádky pro '.' a '..' nepočítejte. Obsah souboru zobrazíte pomocí 'cat .secret_code'.",
+        "Skryté položky začínají tečkou. Použijte 'ls -la' pro zobrazení všech položek i jejich typů.",
+        "Adresáře poznáte podle 'd' na začátku řádku; běžné soubory začínají '-'.",
+        "Položky '.' a '..' nepočítejte. Obsah souboru zobrazíte pomocí 'cat .secret_code'.",
     ]
     start_directory = "final_test"
     fixture = WorkspaceFixture(
@@ -206,7 +213,7 @@ class HiddenFilesSummaryChallengeLevel(Level):
                     2,
                     mistakes={4: "Možná počítáte i ./ a ../. Ty vynechte; počítejte jen skryté adresáře."},
                     error_message=(
-                        "Počet skrytých adresářů není správně. Použijte 'ls -aF' a rozlište soubory a adresáře."
+                        "Počet skrytých adresářů není správně. V 'ls -la' sledujte první znak řádku a název."
                     ),
                     invalid_message="První část musí být číslo (počet skrytých adresářů).",
                 ),
@@ -217,78 +224,7 @@ class HiddenFilesSummaryChallengeLevel(Level):
                     error_message="Kód není správný. Přečtěte .secret_code.",
                 ),
             ),
-            format_message="Formát odpovědi je: počet,kód (např. 3,tajne123)",
+            format_message="Formát odpovědi je: POČET,KÓD",
         )
     )
     success_message = "Výborně! Dokončili jste Sekci 3. Skryté soubory před vámi nic neskryjí!"
-
-
-@section.level(6)
-class SelfReflectionCheckpointLevel(Level):
-    solution = Solution(answer="4")
-    title = "Kontrolní bod: Sebehodnocení"
-    instructions = """
-        ### Čas na zamyšlení!
-
-        Právě jste se naučili základy práce v terminálu:
-        - **Sekce 1**: Navigace (`pwd`, `cd`, `ls`)
-        - **Sekce 2**: Čtení souborů (`cat`, `ls -l`, `man`/`--help`)
-        - **Sekce 3**: Skryté soubory (`ls -a`, soubory začínající `.`)
-
-        ### Úkol: Sebehodnocení
-
-        Na stupnici **1-5** ohodnoťte svou jistotu:
-        - **1** = Potřebuji víc procvičování
-        - **3** = Rozumím základům, ale občas váhám
-        - **5** = Cítím se jistě, mohu pokračovat
-
-        ### Otázky k zamyšlení
-        1. Umím se pohybovat mezi adresáři pomocí `cd`?
-        2. Dokážu zobrazit skryté soubory?
-        3. Vím, jak přečíst obsah souboru?
-        4. Umím najít nápovědu k příkazu?
-
-        ### Odevzdání
-        Odevzdejte číslo 1-5 podle vaší jistoty.
-        - Pokud je vaše hodnocení **1-2**, projděte si znovu úvod předchozí sekce
-        - Pokud je **3-5**, pokračujte dál!
-
-        `shellgame submit <1-5>`
-        """
-    hints = [
-        "Toto je sebehodnocení - neexistuje špatná odpověď!",
-        "Buďte k sobě upřímní. Pokud váháte, vraťte se k předchozím levelům.",
-        "Odevzdejte jakékoliv číslo od 1 do 5.",
-    ]
-    start_directory = WORKSPACE_ROOT
-    completion = Completion(
-        answer=IntegerRangeAnswer(
-            1,
-            5,
-            error_message="Hodnocení musí být od 1 do 5.",
-            invalid_message="Odevzdejte číslo od 1 do 5.",
-            required_message="Odevzdejte číslo od 1 do 5.",
-        ),
-    )
-
-    @override
-    def validate(self, answer: str | None, state: GameStateProtocol) -> ValidationResult:
-        success, msg = super().validate(answer, state)
-        if not success or answer is None:
-            return success, msg
-
-        rating = int(answer.strip())
-        if rating <= 2:
-            return True, (
-                "Děkujeme za upřímnost! Doporučujeme vrátit se k "
-                "předchozím materiálům. Úvod sekce si zobrazíte například "
-                "příkazem 'shellgame repeat --section 1'."
-            )
-        if rating == 3:
-            return True, (
-                "Dobrý základ! Pokud si nejste jisti konkrétním příkazem, "
-                "můžete se kdykoliv vrátit. Pokračujte na Sekci 4!"
-            )
-        return True, (
-            "Skvělé! Máte solidní základy. Pokračujte na Sekci 4, kde se naučíte vytvářet a organizovat soubory!"
-        )

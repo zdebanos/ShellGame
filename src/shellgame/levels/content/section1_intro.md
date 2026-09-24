@@ -39,8 +39,14 @@ V této sekci se zaměříme na tři klíčové dovednosti:
 
 ### Příkazy, které si osvojíte
 
-- `pwd` (Print Working Directory) - "Kde jsem?"
-- `ls` (List) - "Co tu je?"
-- `cd` (Change Directory) - "Jdi tam!"
+- `pwd` (Print Working Directory) - „Kde jsem?“
+- `ls` (List) - „Co tu je?“
+- `<příkaz> --help` - stručná nápověda k příkazu
+- `man <příkaz>` - podrobný manuál
+- `cd` (Change Directory) - „Jdi tam!“
+
+### Dva triky pro pohodlné psaní
+- **Klávesa Tab (doplňování)**: Napište začátek jména a stiskněte Tab. Shell zbytek doplní sám, což vás uchrání od překlepů.
+- **Šipky nahoru/dolů (historie)**: Stiskem šipky ↑ vyvoláte předchozí příkaz, aniž byste ho museli psát znovu.
 
 Jste připraveni začít svou cestu?

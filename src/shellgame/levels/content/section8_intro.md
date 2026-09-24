@@ -1,58 +1,67 @@
-# Sekce 8: Přesměrování a roury (pipes)
+# Sekce 8: Oprávnění
 
-Většina příkazů vypisuje svůj výstup na obrazovku (standardní výstup - stdout).
-Tento výstup můžete přesměrovat do souboru nebo poslat jinému příkazu.
+V Linuxu má každý soubor a adresář nastavená oprávnění, která určují, kdo s ním může co dělat.
 
-## 🎯 Proč je to důležité?
+## Proč je to důležité?
 
-### Automatizace a skripty
+### Bezpečnost systému
+- **Hesla**: Soubor `/etc/shadow` obsahuje hesla - smí ho číst jen root!
+- **Konfigurace**: Webový server nesmí měnit vlastní konfiguraci (jen číst)
+- **Sdílení**: Spolužáci nevidí vaše soukromé soubory v domovském adresáři
+
+### Běžné situace
 ```bash
-# Denní záloha - výstup do logu
-./backup.sh > /var/log/backup_$(date +%F).log
+# "Permission denied" při spuštění skriptu?
+$ ./muj_skript.sh
+bash: ./muj_skript.sh: Permission denied
+$ chmod u+x muj_skript.sh   # Přidá spuštění pro vlastníka
+$ ./muj_skript.sh
+Hello World!
 
-# Monitorování serveru
-uptime >> server_stats.txt
+# Webový server nevidí soubory?
+$ chmod 644 index.html     # Ostatní mohou číst
 ```
 
-### Analýza dat
-```bash
-# Kolik unikátních IP adres přistoupilo na web?
-cut -d' ' -f1 access.log | sort -u | wc -l
-
-# Najdi 10 největších souborů
-du -ah /home | sort -rh | head -10
+## Tři typy oprávnění
+```
+r (read)     → Číst obsah souboru / vypsat obsah adresáře
+w (write)    → Měnit obsah souboru / vytvářet a mazat položky v adresáři
+x (execute)  → Spustit jako program / vstoupit do adresáře
 ```
 
-> 💡 **Tip:** Nepoužívejte `cat soubor | prikaz`, když `prikaz` umí číst soubor
-> přímo (`prikaz soubor`). Zbytečný `cat` navíc spouští další proces.
-> Také `sort | uniq` lze zkrátit na `sort -u`.
+Smazání souboru závisí na právech `w` a `x` nadřazeného adresáře,
+ne na právu `w` samotného souboru.
 
-### Filtrování výstupu
-```bash
-# Příliš mnoho výstupu? Najdi jen chyby:
-make 2>&1 | grep -i error
-```
+---
 
-## Přesměrování vizuálně
+## Tři skupiny uživatelů
 ```
-Bez přesměrování:           S přesměrováním:
-┌─────────┐                 ┌─────────┐
-│ příkaz  │──── stdout ───▶ │ příkaz  │──── > ───▶ soubor.txt
-└─────────┘      │          └─────────┘
-                 ▼
-            obrazovka
+u (user)   → Vlastník souboru (vy)
+g (group)  → Členové skupiny vlastníka
+o (other)  → Všichni ostatní
 ```
 
-## `>` vs `>>` vs `|`
+## Jak číst `ls -l`
 ```
->   přepíše soubor (pozor na ztrátu dat!)
->>  přidá na konec souboru
-|   pošle výstup dalšímu příkazu (roura/pipe)
+-rwxr-xr--  =  vlastník: rwx, skupina: r-x, ostatní: r--
+ ││││││││
+ │├┴┤├┴┤├┴┤
+ │ u  g  o
+ │
+ └─ typ (- soubor, d adresář)
+```
+
+## Dva způsoby zápisu chmod
+```
+Symbolický:              Číselný (oktalový):
+chmod u+x soubor         chmod 755 soubor
+chmod g-w soubor         
+chmod o=r soubor         r=4, w=2, x=1
+                         755 = rwx|r-x|r-x
 ```
 
 ## Co se naučíte:
-- Uložit výstup příkazu do souboru (`>`)
-- Přidat výstup na konec souboru (`>>`)
-- Propojovat příkazy pomocí rour (`|`)
-- Zobrazovat části souborů (`head`, `tail`)
-- Počítat řádky, slova a znaky (`wc`)
+- Číst oprávnění (`ls -l`)
+- Měnit oprávnění (`chmod`)
+- Používat symbolický zápis (`u+x`) i číselný zápis (`755`)
+- Předvídat a prakticky ověřit, jak `w` a `x` ovlivňují práci s adresáři

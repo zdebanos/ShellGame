@@ -139,7 +139,12 @@ ShellGame teaches you to:
 - Understand absolute vs relative paths
 - Use `pwd`, `ls`, `cd` fluently
 - Read and follow file-based instructions
-- Build mental models of directory trees
+- Create, inspect, copy, move, and remove filesystem entries safely
+- Understand file and directory permissions, redirection, stdin, stdout, and stderr
+- Quote paths containing spaces and react to command success with `&&` and `||`
+- Select files with glob patterns and search with `grep` and `find`
+- Work efficiently with built-in help, manuals, and short aliases
+- Build mental models of directory trees and shell data flow
 
 ## Install (development)
 
@@ -156,11 +161,27 @@ Notes:
 
 ## Install (distribution)
 
-Create a standalone binary using `PyInstaller`:
+Install the latest Linux x86_64 binary into the current directory (no root or `sudo` required), then run it directly:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jdupak/ShellGame/main/scripts/install.sh | bash
+./shellgame
+```
+
+To choose another installation directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jdupak/ShellGame/main/scripts/install.sh | INSTALL_DIR="$HOME/bin" bash
+"$HOME/bin/shellgame"
+```
+
+Or build a standalone binary locally with `PyInstaller`:
 
 ```bash
 make build
 ```
+
+Every push to the default branch creates a GitHub Release asset containing a packed `shellgame` binary.
 
 ## Shell integration (built-in)
 
@@ -171,7 +192,7 @@ Protocol reference:
 
 ## License
 
-Copyright (C) 2025 Jakub Dupak <dev@jakubdupak.com>
+Copyright (C) 2025-2026 Jakub Dupak <dev@jakubdupak.com>
 
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0-only).
 See `LICENSE`.
